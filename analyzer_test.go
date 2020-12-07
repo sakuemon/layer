@@ -31,3 +31,11 @@ func TestImportPath(t *testing.T) {
 	testdata := filepath.Join(analysistest.TestData(), "importpath")
 	analysistest.Run(t, testdata, layer.Analyzer, "a/...")
 }
+
+func TestConfig(t *testing.T) {
+	if err := layer.Analyzer.Flags.Set("conf", "testdata/test.cfg"); err != nil {
+		t.Fatal(err)
+	}
+	testdata := filepath.Join(analysistest.TestData(), "option")
+	analysistest.Run(t, testdata, layer.Analyzer, "handler")
+}

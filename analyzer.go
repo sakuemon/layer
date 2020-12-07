@@ -2,6 +2,8 @@ package layer
 
 import (
 	"encoding/json"
+	"io/ioutil"
+	"os"
 	"strconv"
 	"strings"
 
@@ -9,33 +11,38 @@ import (
 	"golang.org/x/tools/go/analysis/passes/inspect"
 )
 
-/**
- * define layer graph by JSON array.
- * For example, the sample graph of "The Clean Architecture" is below:
- * https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html
- * [
- *   "external_interfaces",
- *   "web",
- *   "devices",
- *   "db",
- *   "ui",
- *   [
- *     "controllers",
- *     "gateways",
- *     "presenters",
- *     [
- *       "use_cases",
- *       [
- *         "entity"
- *       ]
- *     ]
- *   ]
- * ]
- */
-var jsonString = `[ "external","db","ui", [ "controllers", [ "usecases", [ "entity" ] ] ] ]` // -jsonlayer flag
+var (
+	/**
+	 * define layer graph by JSON array.
+	 * For example, the sample graph of "The Clean Architecture" is below:
+	 * https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html
+	 * [
+	 *   "external_interfaces",
+	 *   "web",
+	 *   "devices",
+	 *   "db",
+	 *   "ui",
+	 *   [
+	 *     "controllers",
+	 *     "gateways",
+	 *     "presenters",
+	 *     [
+	 *       "use_cases",
+	 *       [
+	 *         "entity"
+	 *       ]
+	 *     ]
+	 *   ]
+	 * ]
+	 */
+	jsonString = `[ "external","db","ui", [ "controllers", [ "usecases", [ "entity" ] ] ] ]` // -jsonlayer flag
+
+	conf string // config file
+)
 
 func init() {
 	Analyzer.Flags.StringVar(&jsonString, "jsonlayer", jsonString, "jsonlayer defines layer hierarchy by JSON array")
+	Analyzer.Flags.StringVar(&conf, "conf", "", "path to config file")
 }
 
 // Analyzer confirms whether the packages follow to the layer structure.
@@ -53,6 +60,13 @@ const Doc = "layer checks whether there are dependencies that illegal cross-bord
 
 func run(pass *analysis.Pass) (interface{}, error) {
 	l := &Layer{}
+	if conf != "" {
+		bytes, err := loadConfig(conf)
+		if err != nil {
+			return nil, err
+		}
+		jsonString = string(bytes)
+	}
 	if err := json.Unmarshal([]byte(jsonString), l); err != nil {
 		return nil, err
 	}
@@ -112,4 +126,17 @@ func include(l *Layer, name string) bool {
 		}
 	}
 	return false
+}
+
+func loadConfig(configPath string) ([]byte, error) {
+	if _, err := os.Stat(configPath); os.IsNotExist(err) {
+		return nil, err
+	}
+	file, err := os.Open(configPath)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	return ioutil.ReadAll(file)
 }
